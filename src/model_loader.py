@@ -6,19 +6,40 @@ Handles loading and configuration of the three benchmark models:
 2. Gemma-2B (google/gemma-2b) — Google's efficient 2B param model
 3. Llama-3.2-1B (meta-llama/Llama-3.2-1B) — Meta's compact 1B param model
 
-All models are loaded with 4-bit quantization for Colab T4 compatibility.
+Supports:
+- CUDA GPUs with optional 4-bit quantization (bitsandbytes)
+- Apple Silicon MPS with float16/float32
+- CPU fallback
 """
 
 import gc
+import os
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
 import torch
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+
+# ─── Device Detection ────────────────────────────────────────────────────────
+
+def get_device() -> str:
+    """Auto-detect the best available device."""
+    if torch.cuda.is_available():
+        return "cuda"
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+def get_torch_dtype(device: str) -> torch.dtype:
+    """Get the optimal dtype for the device."""
+    if device == "cuda":
+        return torch.float16
+    elif device == "mps":
+        # MPS supports float16 for most ops in recent PyTorch
+        return torch.float16
+    return torch.float32
 
 
 # ─── Model Registry ──────────────────────────────────────────────────────────
@@ -63,29 +84,29 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
 }
 
 
-# ─── Quantization Config ─────────────────────────────────────────────────────
+# ─── Quantization Config (CUDA only) ─────────────────────────────────────────
 
-def get_quantization_config(
-    load_in_4bit: bool = True,
-    bnb_4bit_compute_dtype: str = "float16",
-) -> Optional[BitsAndBytesConfig]:
+def get_quantization_config(device: str):
     """
-    Get BitsAndBytes quantization config for memory-efficient loading.
+    Get BitsAndBytes quantization config (CUDA only).
 
     4-bit quantization reduces VRAM usage by ~4x, allowing 2B models
-    to fit on a T4 GPU (16GB VRAM) with room for inference.
+    to fit on a T4 GPU (16GB VRAM). Not supported on MPS or CPU.
     """
-    if not load_in_4bit:
+    if device != "cuda":
         return None
 
-    compute_dtype = getattr(torch, bnb_4bit_compute_dtype, torch.float16)
-
-    return BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=compute_dtype,
-        bnb_4bit_use_double_quant=True,  # Nested quantization for extra savings
-    )
+    try:
+        from transformers import BitsAndBytesConfig
+        return BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+        )
+    except ImportError:
+        print("⚠️  bitsandbytes not installed. Loading in full precision.")
+        return None
 
 
 # ─── Model Loading ───────────────────────────────────────────────────────────
@@ -93,16 +114,21 @@ def get_quantization_config(
 def load_model_and_tokenizer(
     model_key: str,
     quantize: bool = True,
-    device_map: str = "auto",
+    device_map: Optional[str] = None,
     cache_dir: Optional[str] = None,
 ) -> Tuple:
     """
     Load a model and its tokenizer from the registry.
 
+    Automatically detects CUDA/MPS/CPU and configures accordingly:
+    - CUDA: Uses 4-bit quantization if quantize=True
+    - MPS: Uses float16, loads to MPS device
+    - CPU: Uses float32 (slow but works)
+
     Args:
         model_key: Key from MODEL_REGISTRY (e.g., "sarvam-2b").
-        quantize: Whether to apply 4-bit quantization.
-        device_map: Device placement strategy ("auto" for GPU).
+        quantize: Whether to apply 4-bit quantization (CUDA only).
+        device_map: Device placement. Auto-detected if None.
         cache_dir: Optional cache directory for model weights.
 
     Returns:
@@ -115,14 +141,19 @@ def load_model_and_tokenizer(
         )
 
     config = MODEL_REGISTRY[model_key]
+    device = get_device()
+    dtype = get_torch_dtype(device)
+
     print(f"\n{'=' * 60}")
     print(f"🤖 Loading {config.name}")
     print(f"   HuggingFace ID: {config.hf_id}")
-    print(f"   Quantization: {'4-bit NF4' if quantize else 'Full precision'}")
+    print(f"   Device: {device.upper()}")
+    print(f"   Dtype: {dtype}")
+    if device == "cuda" and quantize:
+        print(f"   Quantization: 4-bit NF4")
+    else:
+        print(f"   Quantization: None (native {dtype})")
     print(f"{'=' * 60}")
-
-    # Quantization config
-    quant_config = get_quantization_config() if quantize else None
 
     # Load tokenizer
     print("📝 Loading tokenizer...")
@@ -137,41 +168,64 @@ def load_model_and_tokenizer(
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    # Load model
+    # Build model kwargs based on device
     print("🧠 Loading model weights...")
     model_kwargs = {
         "trust_remote_code": config.trust_remote_code,
-        "device_map": device_map,
-        "torch_dtype": torch.float16,
+        "torch_dtype": dtype,
         "cache_dir": cache_dir,
+        "low_cpu_mem_usage": True,
         **config.extra_kwargs,
     }
 
-    if quant_config:
-        model_kwargs["quantization_config"] = quant_config
+    if device == "cuda":
+        model_kwargs["device_map"] = device_map or "auto"
+        if quantize:
+            quant_config = get_quantization_config(device)
+            if quant_config:
+                model_kwargs["quantization_config"] = quant_config
+    elif device == "mps":
+        # For MPS: load to CPU first, then move to MPS
+        # device_map="auto" doesn't work well with MPS
+        model_kwargs["device_map"] = None
+    else:
+        model_kwargs["device_map"] = None
 
     model = AutoModelForCausalLM.from_pretrained(
         config.hf_id,
         **model_kwargs,
     )
 
+    # Move to MPS if available
+    if device == "mps":
+        print("   🍎 Moving model to MPS...")
+        model = model.to("mps")
+
     model.eval()  # Set to evaluation mode
 
     # Report memory usage
-    _report_memory(config.name)
+    _report_memory(config.name, device)
 
     print(f"✅ {config.name} loaded successfully!")
     return model, tokenizer, config
 
 
-def _report_memory(model_name: str):
+def _report_memory(model_name: str, device: str = None):
     """Report GPU memory usage after loading a model."""
-    if torch.cuda.is_available():
+    if device is None:
+        device = get_device()
+
+    if device == "cuda":
         allocated = torch.cuda.memory_allocated() / 1024**3
         reserved = torch.cuda.memory_reserved() / 1024**3
         print(f"   📊 GPU Memory — Allocated: {allocated:.2f} GB, Reserved: {reserved:.2f} GB")
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        print(f"   📊 Running on Apple MPS (Metal Performance Shaders)")
+    elif device == "mps":
+        # MPS memory reporting (available in recent PyTorch)
+        try:
+            allocated = torch.mps.current_allocated_memory() / 1024**3
+            print(f"   📊 MPS Memory — Allocated: {allocated:.2f} GB")
+        except AttributeError:
+            print(f"   📊 Running on Apple MPS (Metal Performance Shaders)")
     else:
         print(f"   📊 Running on CPU (inference will be slow)")
 
@@ -180,8 +234,7 @@ def unload_model(model, tokenizer):
     """
     Unload a model to free GPU memory before loading the next one.
 
-    On Colab free tier, we can typically only hold one 2B model
-    in memory at a time with 4-bit quantization.
+    Handles CUDA, MPS, and CPU cleanup.
     """
     print("🗑️  Unloading model to free memory...")
     del model
@@ -191,6 +244,8 @@ def unload_model(model, tokenizer):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
+    elif hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache"):
+        torch.mps.empty_cache()
 
     print("   ✅ Memory freed")
 
@@ -271,12 +326,13 @@ def load_all_models(
     """
     Load all benchmark models sequentially.
 
-    WARNING: On free-tier Colab, loading all models simultaneously
-    may exceed memory. Consider loading one at a time with unload_model().
+    WARNING: On free-tier Colab or limited MPS memory, loading all models
+    simultaneously may exceed memory. Consider loading one at a time
+    with unload_model().
 
     Args:
         model_keys: List of model keys to load. Defaults to all.
-        quantize: Whether to apply 4-bit quantization.
+        quantize: Whether to apply 4-bit quantization (CUDA only).
         cache_dir: Optional cache directory.
 
     Returns:
@@ -297,7 +353,12 @@ def load_all_models(
 
 def get_model_info() -> str:
     """Get a formatted summary of all registered models."""
-    lines = ["📋 Registered Models:", "=" * 50]
+    device = get_device()
+    lines = [
+        "📋 Registered Models:",
+        f"   Device: {device.upper()}",
+        "=" * 50,
+    ]
     for key, config in MODEL_REGISTRY.items():
         lines.append(f"\n  {key}:")
         lines.append(f"    Name: {config.name}")

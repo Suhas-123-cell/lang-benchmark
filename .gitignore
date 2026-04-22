@@ -36,3 +36,6 @@ results/figures/*.png
 
 # HuggingFace cache
 .cache/
+
+# Secrets
+.env

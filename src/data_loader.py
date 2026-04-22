@@ -44,12 +44,32 @@ def normalize_sample(
 
 # ─── Task 1: IndicQA (Reading Comprehension) ─────────────────────────────────
 
-# Language code mapping for IndicQA subsets
-INDICQA_LANG_MAP = {
-    "hindi": "indicqa.hi",
-    "bengali": "indicqa.bn",
-    "tamil": "indicqa.ta",
-}
+# Unicode script detection for language filtering
+import unicodedata
+
+def _detect_indic_language(text: str) -> str:
+    """Detect the Indic language of a text by its Unicode script."""
+    for char in text[:300]:
+        name = unicodedata.name(char, "")
+        if "DEVANAGARI" in name:
+            return "hindi"
+        if "BENGALI" in name:
+            return "bengali"
+        if "TAMIL" in name:
+            return "tamil"
+        if "TELUGU" in name:
+            return "telugu"
+        if "KANNADA" in name:
+            return "kannada"
+        if "MALAYALAM" in name:
+            return "malayalam"
+        if "GUJARATI" in name:
+            return "gujarati"
+        if "GURMUKHI" in name:
+            return "punjabi"
+        if "ORIYA" in name:
+            return "oriya"
+    return "unknown"
 
 
 def load_indicqa(
@@ -64,6 +84,10 @@ def load_indicqa(
     in 11 Indic languages. Each sample has a context paragraph,
     a question, and an extractive answer span.
 
+    Uses parquet revision since the original loading script is
+    deprecated in newer versions of the `datasets` library.
+    Languages are detected via Unicode script analysis.
+
     Args:
         languages: List of languages to load (hindi, bengali, tamil).
         max_samples_per_lang: Maximum number of samples per language.
@@ -74,49 +98,58 @@ def load_indicqa(
     """
     all_samples = []
 
+    print(f"📖 Loading IndicQA dataset (parquet)...")
+    try:
+        dataset = load_dataset(
+            "ai4bharat/IndicQA",
+            revision="refs/convert/parquet",
+            split=split,
+        )
+    except Exception as e:
+        print(f"❌ Failed to load IndicQA: {e}")
+        return all_samples
+
+    print(f"   📦 Total samples in dataset: {len(dataset)}")
+
+    # Group by detected language
+    lang_counts = {lang: 0 for lang in languages}
+
+    for i, sample in enumerate(dataset):
+        # Detect language from context text
+        context = sample.get("context", "")
+        detected_lang = _detect_indic_language(context)
+
+        if detected_lang not in languages:
+            continue
+
+        if lang_counts[detected_lang] >= max_samples_per_lang:
+            continue
+
+        # IndicQA follows SQuAD-style format
+        answers = sample.get("answers", {})
+        answer_texts = answers.get("text", [])
+
+        # Skip samples without valid answers
+        if not answer_texts or not answer_texts[0]:
+            continue
+
+        normalized = normalize_sample(
+            question=sample["question"],
+            answer=answer_texts[0],  # Take the first answer
+            language=detected_lang,
+            task="reading_comprehension",
+            context=context,
+            sample_id=f"indicqa_{detected_lang}_{lang_counts[detected_lang]}",
+        )
+        all_samples.append(normalized)
+        lang_counts[detected_lang] += 1
+
+        # Check if we have enough for all languages
+        if all(lang_counts[lang] >= max_samples_per_lang for lang in languages):
+            break
+
     for lang in languages:
-        subset_name = INDICQA_LANG_MAP.get(lang)
-        if not subset_name:
-            print(f"⚠️  Language '{lang}' not found in IndicQA. Skipping.")
-            continue
-
-        print(f"📖 Loading IndicQA — {lang} ({subset_name})...")
-
-        try:
-            dataset = load_dataset(
-                "ai4bharat/IndicQA",
-                subset_name,
-                split=split,
-                trust_remote_code=True,
-            )
-        except Exception as e:
-            print(f"❌ Failed to load IndicQA for {lang}: {e}")
-            continue
-
-        count = 0
-        for i, sample in enumerate(dataset):
-            if count >= max_samples_per_lang:
-                break
-
-            # IndicQA follows SQuAD-style format
-            answers = sample.get("answers", {})
-            answer_texts = answers.get("text", [])
-
-            if not answer_texts:
-                continue  # Skip samples without answers
-
-            normalized = normalize_sample(
-                question=sample["question"],
-                answer=answer_texts[0],  # Take the first answer
-                language=lang,
-                task="reading_comprehension",
-                context=sample.get("context", ""),
-                sample_id=f"indicqa_{lang}_{i}",
-            )
-            all_samples.append(normalized)
-            count += 1
-
-        print(f"   ✅ Loaded {count} samples for {lang}")
+        print(f"   ✅ {lang}: {lang_counts[lang]} samples")
 
     print(f"\n📊 Total IndicQA samples: {len(all_samples)}")
     return all_samples
@@ -125,9 +158,9 @@ def load_indicqa(
 # ─── Task 2: IndicMMLU-Pro (Math/STEM Reasoning) ─────────────────────────────
 
 INDICMMLU_LANG_MAP = {
-    "hindi": "hi",
-    "bengali": "bn",
-    "tamil": "ta",
+    "hindi": "hindi",
+    "bengali": "bengali",
+    "tamil": "tamil",
 }
 
 # STEM-related categories to filter for math reasoning
@@ -174,20 +207,18 @@ def load_indicmmlu(
         print(f"🔢 Loading IndicMMLU-Pro — {lang} ({lang_code})...")
 
         try:
-            # Try loading the language-specific subset
+            # Load with full language name as config
             dataset = load_dataset(
                 "LinguaLift/IndicMMLU-Pro",
                 lang_code,
                 split="test",
-                trust_remote_code=True,
             )
         except Exception:
             try:
-                # Fallback: load full dataset and filter by language
+                # Fallback: load default and filter
                 dataset = load_dataset(
                     "LinguaLift/IndicMMLU-Pro",
                     split="test",
-                    trust_remote_code=True,
                 )
                 dataset = dataset.filter(
                     lambda x: x.get("language", "") == lang_code
