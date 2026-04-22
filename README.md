@@ -89,8 +89,8 @@ Both models are base (non-instruction-tuned) checkpoints. The low absolute score
 ### Prerequisites
 
 - Python 3.10+
-- Apple Silicon Mac (MPS) or NVIDIA GPU (CUDA)
-- HuggingFace account with access to gated models
+- **Any** of: NVIDIA GPU (CUDA), Apple Silicon Mac (MPS), or CPU
+- HuggingFace account with access to gated models (Gemma, Llama)
 
 ### Installation
 
@@ -114,10 +114,10 @@ HF_TOKEN=hf_your_token_here
 ### Running the Benchmark
 
 ```bash
-# Full benchmark (all models, 50 samples/lang, ~80 min on MPS)
+# Full benchmark — auto-detects best device (cuda > mps > cpu)
 python3 run_benchmark.py
 
-# Quick test (10 samples/lang, ~35 min on MPS)
+# Quick test (10 samples/lang)
 python3 run_benchmark.py --samples 10
 
 # Single model
@@ -129,6 +129,27 @@ python3 run_benchmark.py --task reading
 # Skip inference, just regenerate leaderboard from existing results
 python3 run_benchmark.py --skip-inference
 ```
+
+### Device Support
+
+The benchmark **auto-detects the best available device**, but you can force a specific backend with `--device`:
+
+```bash
+# Force NVIDIA CUDA GPU (uses 4-bit quantization via bitsandbytes)
+python3 run_benchmark.py --device cuda
+
+# Force Apple Silicon MPS (uses float16, no quantization needed)
+python3 run_benchmark.py --device mps
+
+# Force CPU (float32 — slow, but works anywhere)
+python3 run_benchmark.py --device cpu
+```
+
+| Device | Dtype | Quantization | Memory per Model | Speed |
+|--------|-------|:------------:|:----------------:|:-----:|
+| **CUDA** (NVIDIA) | float16 | 4-bit NF4 | ~1.2 GB | ⚡ Fastest |
+| **MPS** (Apple Silicon) | float16 | None | ~4.7–9.3 GB | ✅ Fast |
+| **CPU** | float32 | None | ~8–10 GB | 🐢 Slow |
 
 ---
 
@@ -161,29 +182,119 @@ lang-benchmark/
 
 ## 📊 Methodology
 
+### How We Evaluate — Datasets
+
+The benchmark uses **two published, peer-reviewed datasets** and **one hand-crafted dataset**:
+
+#### 1. IndicQA (AI4Bharat) — Reading Comprehension
+- **Source:** [ai4bharat/IndicQA](https://huggingface.co/datasets/ai4bharat/IndicQA) — a published extractive QA benchmark
+- **Format:** SQuAD-style — each sample has a Wikipedia passage (context), a question, and a gold-standard answer span extracted from the passage
+- **Size:** 18,586 total samples across 11 Indic languages; we use 50 per language (Hindi, Bengali, Tamil) = 150 samples per model
+- **Why this dataset:** IndicQA is the standard reading comprehension benchmark for Indic languages, created by AI4Bharat (India's leading NLP research group). It directly tests whether a model can locate and extract factual answers from Indic-language text.
+- **Language detection:** Since the parquet version doesn't have a language column, we detect languages via Unicode script analysis (Devanagari → Hindi, Bengali script → Bengali, Tamil script → Tamil)
+
+#### 2. IndicMMLU-Pro (LinguaLift) — Math/STEM Reasoning
+- **Source:** [LinguaLift/IndicMMLU-Pro](https://huggingface.co/datasets/LinguaLift/IndicMMLU-Pro) — a multilingual translation of the MMLU-Pro benchmark
+- **Format:** Multiple-choice questions with 4–10 options, covering subjects like math, physics, biology, engineering
+- **Size:** 50 per language (Hindi, Bengali, Tamil) = 150 samples per model
+- **Why this dataset:** MMLU is the gold standard for measuring factual and reasoning ability. The Indic translation lets us test whether mathematical and scientific reasoning transfers across languages in small models.
+
+#### 3. Code-Mixed QA — Hinglish (Hand-Crafted)
+- **Source:** `data/code_mixed_qa.json` — 50 manually written Hinglish (Hindi + English) question-answer pairs
+- **Format:** Open-ended QA with short factual answers
+- **Categories:** General Knowledge (15), Science & Tech (15), Daily Life & Culture (20)
+- **Why hand-crafted:** No large-scale, high-quality Hinglish QA benchmark exists. We created 50 samples to probe code-switching ability — a critical real-world use case for Indian users who naturally mix Hindi and English.
+- **Limitation:** n=50 is small; results are directional, not statistically robust. This dataset is best viewed as a pilot probe.
+
 ### Evaluation Protocol
 
-- **Hardware:** Apple Silicon M-series (MPS) with float16 inference
-- **Decoding:** Greedy (`do_sample=False`) for reproducibility
-- **Prompting:** Few-shot for reading comprehension and math; zero-shot for code-mixed QA
-- **Normalization:** Indic-aware text normalization handling Devanagari, Bengali, and Tamil scripts
-- **Samples:** 50 per language for IndicQA and IndicMMLU-Pro; 50 total for code-mixed QA
+| Setting | Value |
+|---------|-------|
+| **Decoding** | Greedy (`do_sample=False`) — fully deterministic and reproducible |
+| **Prompting** | Few-shot for reading comprehension & math; zero-shot for code-mixed QA |
+| **Text Normalization** | Indic-aware — strips punctuation, normalizes Unicode for Devanagari, Bengali, and Tamil |
+| **Context Truncation** | Reading comprehension contexts capped at 1500 characters |
+| **Max New Tokens** | 64 (reading), 16 (math — just the option letter), 48 (code-mixed) |
 
 ### Metrics
 
-| Metric | Used For | Description |
-|--------|----------|-------------|
-| **Exact Match (EM)** | QA tasks | Normalized string equality |
-| **F1 Score** | QA tasks | Token-level precision-recall |
-| **Accuracy** | Multiple-choice | Correct option selection |
-| **BLEU** | Code-mixed QA | N-gram precision with brevity penalty |
+| Metric | Task | What It Measures |
+|--------|------|------------------|
+| **Exact Match (EM)** | Reading Comp, Code-Mixed | Does the prediction exactly match the gold answer (after normalization)? |
+| **F1 Score** | Reading Comp, Code-Mixed | Token-level overlap — partial credit for partially correct answers |
+| **Accuracy** | Math Reasoning | Did the model select the correct option letter (A, B, C, etc.)? |
+| **BLEU** | Code-Mixed | N-gram precision with brevity penalty — measures fluency of generated answer |
 
-### Runtime Performance
+### Runtime Performance (Apple Silicon MPS)
 
-| Model | MPS Memory | Reading Comp | Math | Code-Mixed | Total |
-|-------|:----------:|:------------:|:----:|:----------:|:-----:|
+| Model | MPS Memory | Reading Comp (150) | Math (150) | Code-Mixed (50) | Total |
+|-------|:----------:|:------------------:|:----------:|:---------------:|:-----:|
 | Sarvam-2B | 4.67 GB | ~8 min | ~3 min | ~2 min | ~16 min |
 | Gemma-2B | 9.34 GB | ~12 min | ~3 min | ~2 min | ~17 min |
+
+---
+
+## 🔌 Extending the Benchmark
+
+The benchmark is designed to be easily extensible. You can add **any HuggingFace dataset** by writing a simple loader function in `src/data_loader.py`.
+
+### Adding a New Dataset
+
+1. **Write a loader** in `src/data_loader.py` that returns a list of normalized dicts:
+
+```python
+def load_my_dataset(languages, max_samples_per_lang):
+    dataset = load_dataset("org/dataset-name", split="test")
+    samples = []
+    for sample in dataset:
+        samples.append(normalize_sample(
+            question=sample["question"],
+            answer=sample["answer"],
+            language="hindi",
+            task="my_task_name",      # New task key
+            context=sample.get("context"),
+            sample_id=f"mydata_{len(samples)}",
+        ))
+    return samples
+```
+
+2. **Register it** in `load_all_datasets()` at the bottom of `data_loader.py`
+3. **Run** — the pipeline handles metrics, leaderboard, and charts automatically
+
+### Suggested Datasets from HuggingFace
+
+Here are curated Indic language datasets that are compatible with this benchmark and can be added as new tasks:
+
+#### 📖 Reading Comprehension & QA
+
+| Dataset | Languages | Size | Description |
+|---------|-----------|------|-------------|
+| [ai4bharat/MILU](https://huggingface.co/datasets/ai4bharat/MILU) | 11 Indic | 8,933 | Multi-task Indic Language Understanding — MCQ across humanities, STEM, social sciences |
+| [ai4bharat/IndicSentiment](https://huggingface.co/datasets/ai4bharat/IndicSentiment) | 13 Indic | 24K+ | Sentiment analysis benchmark — tests model's understanding of opinion/emotion in Indic text |
+| [Cognitive-Lab/Hindi-Reasoning](https://huggingface.co/datasets/Cognitive-Lab/Hindi_Reasoning) | Hindi | 450 | Logical and analytical reasoning questions in Hindi — tests deeper comprehension |
+
+#### 🧮 Math & Reasoning
+
+| Dataset | Languages | Size | Description |
+|---------|-----------|------|-------------|
+| [sarvamai/samvaad-hi-v1](https://huggingface.co/datasets/sarvamai/samvaad-hi-v1) | Hindi | 16K+ | Hindi conversation dataset from Sarvam AI — tests dialogue understanding |
+| [ai4bharat/IndicXNLI](https://huggingface.co/datasets/Divyanshu/indicxnli) | 11 Indic | 392K | Natural Language Inference — tests logical entailment and contradiction detection |
+
+#### 🌐 Translation & Generation
+
+| Dataset | Languages | Size | Description |
+|---------|-----------|------|-------------|
+| [ai4bharat/IN22](https://huggingface.co/datasets/ai4bharat/IN22-Gen) | 22 Indic | 1,024/lang | High-quality human-translated benchmark — tests translation quality with BLEU/chrF++ |
+| [ai4bharat/IndicParaphrase](https://huggingface.co/datasets/ai4bharat/IndicParaphrase) | 10 Indic | 5.5M | Paraphrase detection — tests semantic understanding beyond surface-level matching |
+
+#### 🗣️ Code-Mixed & Conversational
+
+| Dataset | Languages | Size | Description |
+|---------|-----------|------|-------------|
+| [lince/lince](https://huggingface.co/datasets/lince) | Hindi-English | 10K+ | LinCE benchmark — NER, POS tagging, sentiment on code-mixed text |
+| [Muralidhar/Hindi-Alpaca](https://huggingface.co/datasets/Muralidhar/Hindi-Alpaca) | Hindi | 52K | Instruction-following in Hindi — useful for testing instruction-tuned models |
+
+> **Tip:** Start with [ai4bharat/MILU](https://huggingface.co/datasets/ai4bharat/MILU) — it's the most comprehensive Indic benchmark and would add 8,933 samples across multiple subjects in one go.
 
 ---
 

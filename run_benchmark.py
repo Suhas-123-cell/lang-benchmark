@@ -35,7 +35,7 @@ if os.path.exists(_env_path):
 
 from src.data_loader import load_indicqa, load_indicmmlu, load_code_mixed_qa
 from src.model_loader import (
-    load_model_and_tokenizer, unload_model, get_device, MODEL_REGISTRY,
+    load_model_and_tokenizer, unload_model, get_device, set_device, MODEL_REGISTRY,
 )
 from src.inference import run_full_benchmark
 from src.metrics import evaluate_results, format_metrics_report
@@ -64,10 +64,18 @@ def main():
         help="Directory to save results (default: results)"
     )
     parser.add_argument(
+        "--device", type=str, default=None, choices=["cuda", "mps", "cpu"],
+        help="Force a specific device (cuda, mps, cpu). Default: auto-detect"
+    )
+    parser.add_argument(
         "--skip-inference", action="store_true",
         help="Skip inference, only generate leaderboard from existing results"
     )
     args = parser.parse_args()
+
+    # Apply device override if specified
+    if args.device:
+        set_device(args.device)
 
     device = get_device()
     print(f"\n🚀 Indic Language Benchmark Suite")
