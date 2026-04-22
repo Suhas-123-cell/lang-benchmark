@@ -23,8 +23,23 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # ─── Device Detection ────────────────────────────────────────────────────────
 
+# Global device override (set via set_device())
+_device_override: Optional[str] = None
+
+
+def set_device(device: str):
+    """Override the auto-detected device. Call before loading models."""
+    global _device_override
+    valid = ["cuda", "mps", "cpu"]
+    if device not in valid:
+        raise ValueError(f"Invalid device '{device}'. Must be one of: {valid}")
+    _device_override = device
+
+
 def get_device() -> str:
-    """Auto-detect the best available device."""
+    """Auto-detect the best available device, or use override."""
+    if _device_override:
+        return _device_override
     if torch.cuda.is_available():
         return "cuda"
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -116,6 +131,7 @@ def load_model_and_tokenizer(
     quantize: bool = True,
     device_map: Optional[str] = None,
     cache_dir: Optional[str] = None,
+    device: Optional[str] = None,
 ) -> Tuple:
     """
     Load a model and its tokenizer from the registry.
@@ -141,7 +157,7 @@ def load_model_and_tokenizer(
         )
 
     config = MODEL_REGISTRY[model_key]
-    device = get_device()
+    device = device or get_device()
     dtype = get_torch_dtype(device)
 
     print(f"\n{'=' * 60}")
@@ -218,7 +234,10 @@ def _report_memory(model_name: str, device: str = None):
     if device == "cuda":
         allocated = torch.cuda.memory_allocated() / 1024**3
         reserved = torch.cuda.memory_reserved() / 1024**3
-        print(f"   📊 GPU Memory — Allocated: {allocated:.2f} GB, Reserved: {reserved:.2f} GB")
+        total = torch.cuda.get_device_properties(0).total_mem / 1024**3
+        gpu_name = torch.cuda.get_device_name(0)
+        print(f"   📊 GPU: {gpu_name}")
+        print(f"   📊 VRAM — Allocated: {allocated:.2f} GB, Reserved: {reserved:.2f} GB, Total: {total:.2f} GB")
     elif device == "mps":
         # MPS memory reporting (available in recent PyTorch)
         try:
@@ -236,15 +255,18 @@ def unload_model(model, tokenizer):
 
     Handles CUDA, MPS, and CPU cleanup.
     """
+    device = get_device()
     print("🗑️  Unloading model to free memory...")
     del model
     del tokenizer
     gc.collect()
 
-    if torch.cuda.is_available():
+    if device == "cuda" or torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
-    elif hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache"):
+        freed = torch.cuda.memory_reserved() / 1024**3
+        print(f"   📊 CUDA cache cleared ({freed:.2f} GB reserved)")
+    elif device == "mps" or (hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache")):
         torch.mps.empty_cache()
 
     print("   ✅ Memory freed")
