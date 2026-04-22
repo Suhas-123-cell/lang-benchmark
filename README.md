@@ -189,3 +189,4 @@ MIT License — see [LICENSE](LICENSE) for details.
 - [LinguaLift](https://huggingface.co/LinguaLift) for IndicMMLU-Pro
 - [Google](https://ai.google) for Gemma-2B
 - [Meta](https://ai.meta.com) for Llama-3.2-1B
+# lang-benchmark
