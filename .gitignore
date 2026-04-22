@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_metadata/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Model cache (large files)
+models_cache/
+*.bin
+*.safetensors
+*.gguf
+
+# Results (keep structure, ignore large raw files)
+results/raw/*.jsonl
+results/figures/*.png
+
+# HuggingFace cache
+.cache/
