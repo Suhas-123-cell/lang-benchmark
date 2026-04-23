@@ -1,0 +1,95 @@
+{
+  "models": [
+    {
+      "name": "Sarvam-2B",
+      "hf_id": "sarvamai/sarvam-2b-v0.5",
+      "params": "2B",
+      "indic_focused": true,
+      "url": "https://huggingface.co/sarvamai/sarvam-2b-v0.5"
+    },
+    {
+      "name": "Gemma-2B",
+      "hf_id": "google/gemma-2b",
+      "params": "2B",
+      "indic_focused": false,
+      "url": "https://huggingface.co/google/gemma-2b"
+    }
+  ],
+  "tasks": {
+    "reading_comprehension": {
+      "display_name": "📖 Reading Comprehension",
+      "dataset": "IndicQA (AI4Bharat)",
+      "dataset_url": "https://huggingface.co/datasets/ai4bharat/IndicQA",
+      "primary_metric": "F1",
+      "languages": ["hindi", "bengali", "tamil"],
+      "samples_per_model": 150
+    },
+    "math_reasoning": {
+      "display_name": "🔢 Math Reasoning",
+      "dataset": "IndicMMLU-Pro (LinguaLift)",
+      "dataset_url": "https://huggingface.co/datasets/LinguaLift/IndicMMLU-Pro",
+      "primary_metric": "Accuracy",
+      "languages": ["hindi", "bengali", "tamil"],
+      "samples_per_model": 150
+    },
+    "code_mixed_qa": {
+      "display_name": "🗣️ Code-Mixed QA",
+      "dataset": "50 Hand-Crafted Hinglish Samples",
+      "dataset_url": null,
+      "primary_metric": "F1",
+      "languages": ["hinglish"],
+      "samples_per_model": 50
+    }
+  },
+  "overall_leaderboard": [
+    {
+      "model": "Gemma-2B",
+      "reading_comprehension_f1": 27.43,
+      "math_reasoning_acc": 10.0,
+      "code_mixed_qa_f1": 8.56,
+      "average": 15.33
+    },
+    {
+      "model": "Sarvam-2B",
+      "reading_comprehension_f1": 1.87,
+      "math_reasoning_acc": 14.0,
+      "code_mixed_qa_f1": 17.46,
+      "average": 11.11
+    }
+  ],
+  "detailed_results": {
+    "reading_comprehension": [
+      {"model": "Gemma-2B", "language": "hindi", "em": 35.0, "f1": 39.41},
+      {"model": "Gemma-2B", "language": "bengali", "em": 12.0, "f1": 20.16},
+      {"model": "Gemma-2B", "language": "tamil", "em": 15.0, "f1": 22.70},
+      {"model": "Gemma-2B", "language": "overall", "em": 20.67, "f1": 27.43},
+      {"model": "Sarvam-2B", "language": "hindi", "em": 0.0, "f1": 2.92},
+      {"model": "Sarvam-2B", "language": "bengali", "em": 0.0, "f1": 0.48},
+      {"model": "Sarvam-2B", "language": "tamil", "em": 0.0, "f1": 2.22},
+      {"model": "Sarvam-2B", "language": "overall", "em": 0.0, "f1": 1.87}
+    ],
+    "math_reasoning": [
+      {"model": "Gemma-2B", "language": "hindi", "accuracy": 10.0},
+      {"model": "Gemma-2B", "language": "bengali", "accuracy": 8.0},
+      {"model": "Gemma-2B", "language": "tamil", "accuracy": 12.0},
+      {"model": "Gemma-2B", "language": "overall", "accuracy": 10.0},
+      {"model": "Sarvam-2B", "language": "hindi", "accuracy": 12.0},
+      {"model": "Sarvam-2B", "language": "bengali", "accuracy": 16.0},
+      {"model": "Sarvam-2B", "language": "tamil", "accuracy": 14.0},
+      {"model": "Sarvam-2B", "language": "overall", "accuracy": 14.0}
+    ],
+    "code_mixed_qa": [
+      {"model": "Gemma-2B", "language": "hinglish", "em": 0.0, "f1": 8.56, "bleu": 4.86},
+      {"model": "Sarvam-2B", "language": "hinglish", "em": 4.0, "f1": 17.46, "bleu": 6.49}
+    ]
+  },
+  "evaluation_config": {
+    "decoding": "Greedy (do_sample=False)",
+    "prompting": "Few-shot (reading & math), Zero-shot (code-mixed)",
+    "normalization": "Indic-aware Unicode normalization",
+    "context_truncation": "1500 characters",
+    "max_new_tokens": {"reading": 64, "math": 16, "code_mixed": 48},
+    "device": "Apple Silicon MPS (float16)",
+    "deterministic": true
+  }
+}
