@@ -4,8 +4,8 @@
 
 | Model     |   code_mixed_qa |   math_reasoning |   reading_comprehension |   Average |
 |:----------|----------------:|-----------------:|------------------------:|----------:|
-| Gemma-2B  |            8.56 |               10 |                   27.43 |     15.33 |
-| Sarvam-2B |           17.46 |               14 |                    1.87 |     11.11 |
+| Gemma-2B  |            8.56 |             8.33 |                   30.63 |     15.84 |
+| Sarvam-2B |           17.46 |            13.33 |                    1.89 |     10.89 |
 
 ### Code Mixed Qa
 
@@ -18,24 +18,24 @@
 
 | Model     | Task           | Language   | EM (%)   | F1 (%)   |   Accuracy (%) | BLEU (%)   |
 |:----------|:---------------|:-----------|:---------|:---------|---------------:|:-----------|
-| Gemma-2B  | math_reasoning | Overall    | -        | -        |             10 | -          |
-| Gemma-2B  | math_reasoning | hindi      | -        | -        |             10 | -          |
-| Gemma-2B  | math_reasoning | bengali    | -        | -        |              8 | -          |
-| Gemma-2B  | math_reasoning | tamil      | -        | -        |             12 | -          |
-| Sarvam-2B | math_reasoning | Overall    | -        | -        |             14 | -          |
-| Sarvam-2B | math_reasoning | hindi      | -        | -        |             12 | -          |
-| Sarvam-2B | math_reasoning | bengali    | -        | -        |             16 | -          |
-| Sarvam-2B | math_reasoning | tamil      | -        | -        |             14 | -          |
+| Gemma-2B  | math_reasoning | Overall    | -        | -        |           8.33 | -          |
+| Gemma-2B  | math_reasoning | hindi      | -        | -        |           9    | -          |
+| Gemma-2B  | math_reasoning | bengali    | -        | -        |           8    | -          |
+| Gemma-2B  | math_reasoning | tamil      | -        | -        |           8    | -          |
+| Sarvam-2B | math_reasoning | Overall    | -        | -        |          13.33 | -          |
+| Sarvam-2B | math_reasoning | hindi      | -        | -        |          13    | -          |
+| Sarvam-2B | math_reasoning | bengali    | -        | -        |          13    | -          |
+| Sarvam-2B | math_reasoning | tamil      | -        | -        |          14    | -          |
 
 ### Reading Comprehension
 
 | Model     | Task                  | Language   |   EM (%) |   F1 (%) | Accuracy (%)   | BLEU (%)   |
 |:----------|:----------------------|:-----------|---------:|---------:|:---------------|:-----------|
-| Gemma-2B  | reading_comprehension | Overall    |    17.33 |    27.43 | -              | -          |
-| Gemma-2B  | reading_comprehension | bengali    |     8    |    20.16 | -              | -          |
-| Gemma-2B  | reading_comprehension | hindi      |    32    |    39.41 | -              | -          |
-| Gemma-2B  | reading_comprehension | tamil      |    12    |    22.7  | -              | -          |
-| Sarvam-2B | reading_comprehension | Overall    |     0    |     1.87 | -              | -          |
-| Sarvam-2B | reading_comprehension | bengali    |     0    |     0.48 | -              | -          |
-| Sarvam-2B | reading_comprehension | hindi      |     0    |     2.92 | -              | -          |
-| Sarvam-2B | reading_comprehension | tamil      |     0    |     2.22 | -              | -          |
+| Gemma-2B  | reading_comprehension | Overall    |    20.67 |    30.63 | -              | -          |
+| Gemma-2B  | reading_comprehension | bengali    |    12    |    21.75 | -              | -          |
+| Gemma-2B  | reading_comprehension | hindi      |    35    |    43.55 | -              | -          |
+| Gemma-2B  | reading_comprehension | tamil      |    15    |    26.6  | -              | -          |
+| Sarvam-2B | reading_comprehension | Overall    |     0    |     1.89 | -              | -          |
+| Sarvam-2B | reading_comprehension | bengali    |     0    |     0.32 | -              | -          |
+| Sarvam-2B | reading_comprehension | hindi      |     0    |     2.28 | -              | -          |
+| Sarvam-2B | reading_comprehension | tamil      |     0    |     3.07 | -              | -          |
