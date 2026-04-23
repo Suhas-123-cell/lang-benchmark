@@ -1,14 +1,14 @@
 ---
 title: Indic Language Benchmark
 emoji: 🏆
-colorFrom: orange
+colorFrom: yellow
 colorTo: blue
 sdk: gradio
-sdk_version: "5.0"
+sdk_version: "5.12.0"
 app_file: app.py
 pinned: false
 license: mit
-short_description: "Sarvam-2B vs Gemma-2B on Reading Comprehension, Math Reasoning & Code-Mixed QA across Hindi, Bengali, Tamil"
+short_description: "Sarvam-2B vs Gemma-2B on Indic NLP tasks"
 tags:
   - leaderboard
   - indic

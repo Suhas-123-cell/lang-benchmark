@@ -243,6 +243,12 @@ table tr:hover {
 def create_app():
     with gr.Blocks(
         title="🏆 Indic Language Benchmark",
+        css=CUSTOM_CSS,
+        theme=gr.themes.Soft(
+            primary_hue=gr.themes.colors.orange,
+            secondary_hue=gr.themes.colors.blue,
+            font=gr.themes.GoogleFont("Inter"),
+        ),
     ) as demo:
 
         # ── Header ──
@@ -350,16 +356,9 @@ def create_app():
 
 # ─── Launch ───────────────────────────────────────────────────────────────────
 
-THEME = gr.themes.Soft(
-    primary_hue=gr.themes.colors.orange,
-    secondary_hue=gr.themes.colors.blue,
-    font=gr.themes.GoogleFont("Inter"),
-)
-
 if __name__ == "__main__":
     demo = create_app()
-    demo.launch(theme=THEME, css=CUSTOM_CSS)
+    demo.launch()
 else:
     # HF Spaces imports app.py as a module
     demo = create_app()
-    demo.launch(theme=THEME, css=CUSTOM_CSS)
