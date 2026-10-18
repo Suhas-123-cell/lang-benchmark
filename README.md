@@ -1,6 +1,6 @@
 # 🏆 Indic Language Benchmark Suite
 
-> A rigorous evaluation of multilingual LLMs on reading comprehension, math reasoning, and code-mixed QA across Hindi, Bengali, and Tamil — with real benchmark scores from locally-run inference on Apple Silicon (MPS).
+> An evaluation of two 2B multilingual base models on reading comprehension, math reasoning, and code-mixed QA across Hindi, Bengali, and Tamil — with real benchmark scores from locally-run inference on Apple Silicon (MPS).
 
 [![HuggingFace](https://img.shields.io/badge/🤗-HuggingFace-yellow)](https://huggingface.co/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -34,6 +34,8 @@ This benchmark suite evaluates **Sarvam-2B** (an Indic-focused base model from [
 ## 🏆 Benchmark Results
 
 ### Overall Leaderboard
+
+Numbers below come from [huggingface/data/results.json](huggingface/data/results.json) (aggregates only; per-sample predictions were not committed). [results/leaderboard.md](results/leaderboard.md) is from an earlier run and differs slightly. With 50 samples per language, differences of a few points are within noise.
 
 | Model | Reading Comprehension (F1%) | Math Reasoning (Acc%) | Code-Mixed QA (F1%) | Average |
 |-------|:---------------------------:|:---------------------:|:--------------------:|:-------:|
@@ -71,7 +73,7 @@ This benchmark suite evaluates **Sarvam-2B** (an Indic-focused base model from [
 Gemma-2B achieves **27.43% F1** vs Sarvam-2B's **1.87% F1** on extractive QA. This is a 14.6x gap — likely because Gemma had more supervised QA-style data in pre-training. Hindi (39.41%) > Tamil (22.70%) > Bengali (20.16%), reflecting training data distribution.
 
 ### 2. Sarvam-2B wins on Indic-specific tasks
-On **math reasoning** (14% vs 10%) and **code-mixed QA** (17.46% vs 8.56%), Sarvam-2B outperforms Gemma-2B by 40-100%. Its custom tokenizer and Indic-focused pre-training data give it an edge on tasks requiring deeper Indic language understanding.
+On **math reasoning** (14% vs 10%) and **code-mixed QA** (17.46% vs 8.56%), Sarvam-2B scores higher than Gemma-2B. The math gap is 21 vs 15 correct out of 150 and is not statistically meaningful at this sample size; the code-mixed gap is on 50 hand-written samples. Its Indic tokenizer and pre-training data may help, but this run does not isolate why.
 
 ### 3. Code-mixing remains an open challenge
 Both models struggle with Hinglish (F1 < 18%), highlighting a significant research gap. Sarvam-2B's 2x advantage here suggests its tokenizer handles mixed-script text better, but there's substantial room for improvement.
@@ -95,7 +97,7 @@ Both models are base (non-instruction-tuned) checkpoints. The low absolute score
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lang-benchmark.git
+git clone https://github.com/Suhas-123-cell/lang-benchmark.git
 cd lang-benchmark
 python3 -m venv .venv
 source .venv/bin/activate

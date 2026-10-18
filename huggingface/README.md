@@ -24,4 +24,4 @@ tags:
 
 Evaluating **Sarvam-2B** vs **Gemma-2B** on reading comprehension, math reasoning, and code-mixed QA across Hindi, Bengali, and Tamil.
 
-[GitHub Repository](https://github.com/YOUR_USERNAME/lang-benchmark)
+[GitHub Repository](https://github.com/Suhas-123-cell/lang-benchmark)
