@@ -23,7 +23,7 @@ pipeline_tag: text-generation
 
 **Mitra** is a LoRA fine-tuned version of [Sarvam-2B](https://huggingface.co/sarvamai/sarvam-2b-v0.5) that talks like a warm Telugu college friend — recommending movies and songs based on your mood in natural **Tenglish** (Telugu-English code-mixed).
 
-> Built by [YOUR_NAME], [YOUR_COLLEGE] (IIIT)
+> Built by Maddali Suhas Choudary, IIIT Senapati, Manipur
 
 ## What is Mitra?
 
@@ -39,7 +39,7 @@ Mitra is your Tenglish buddy who:
   - Bored | Stressed/Exam Pressure | Happy/Excited | Sad/Low Mood | Movie Suggestions | Song Suggestions
 - **Format**: Llama-2 instruction template (`<s>[INST] ... [/INST] ... </s>`)
 - **Language**: Romanized Telugu-English code-mixed (Tenglish)
-- **Quality**: Validated by a native Telugu speaker
+- **Source**: generated from templates by `generate_dataset.py` (seed 42), 540 train / 60 validation
 - All movie/song recommendations are real Telugu/Hindi titles
 
 ## Training Details
@@ -55,34 +55,39 @@ Mitra is your Tenglish buddy who:
 | Learning Rate | 1e-5 |
 | Batch Size | 2 |
 | Iterations | 1000 |
-| Training Time | ~2-3 hours on M5 |
 
 ## Example: Base vs Fine-tuned
 
 ### Prompt: "yaar chala bore avutunna"
 
-**Base Sarvam-2B:** *(generic text completion, often in Hindi/English, no personality)*
+Outputs copied from [results/eval_results.txt](results/eval_results.txt) (5 prompts, not a scored benchmark).
+
+**Base Sarvam-2B:**
+> येर चल बुतूअन
 
 **Mitra (fine-tuned):**
-> arey bore na? chill bro, oka coffee pettuko first. movie mood unte Jathi Ratnalu chudu, Naveen Polishetty comedy timing next level bro, guaranteed belly laughs. Background lo Buttabomma play chey, instant mood lift!
+> arey bore na? oka walk vellu, fresh air help chestundi
 
 ### Prompt: "bro exam fail ayanu, chala bad ga undi"
 
-**Base Sarvam-2B:** *(continues text without empathy or context)*
+**Base Sarvam-2B:** *(unrelated text about national film awards, repeated)*
 
 **Mitra (fine-tuned):**
-> arey bro, first deep breath teesko. fail aithe aiindi, next time kill cheddham. one exam doesn't define you. plan simple: daily 3 topics, pomodoro technique try chey. you got this bro!
+> arey bro, first deep breath teesko. fail aithe aiindi, next time kill cheddham
 
 ## How to Use
 
 ### With MLX (Apple Silicon)
+
+The adapter weights are not committed or published; train them with the steps in
+[README.md](README.md), which write them to `./adapters`.
 
 ```python
 from mlx_lm import load, generate
 
 model, tokenizer = load(
     "sarvamai/sarvam-2b-v0.5",
-    adapter_path="[YOUR_HF_USERNAME]/mitra-tenglish-sarvam2b"
+    adapter_path="./adapters"
 )
 
 prompt = "<s>[INST] bro chill movie suggest chey [/INST]"
@@ -102,8 +107,8 @@ print(response)
 ```bibtex
 @misc{mitra-tenglish-2025,
   title={Mitra: A Tenglish Friend Chatbot Fine-tuned on Sarvam-2B},
-  author={[YOUR_NAME]},
+  author={Maddali Suhas Choudary},
   year={2025},
-  url={https://huggingface.co/[YOUR_HF_USERNAME]/mitra-tenglish-sarvam2b}
+  url={https://github.com/Suhas-123-cell/lang-benchmark}
 }
 ```

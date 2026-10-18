@@ -87,33 +87,8 @@ python3 eval_mitra.py
 
 ## Step 6 — Push to HuggingFace
 
-Edit `push_to_hub.py` → set `HF_USERNAME` and `MODEL_CARD.md` → set `[YOUR_*]` fields.
+Edit `push_to_hub.py` → set `HF_USERNAME`.
 
 ```bash
 python3 push_to_hub.py
 ```
-
----
-
-## Step 7 — Sarvam Email
-
-**Subject:** Native Telugu Speaker — Fine-tuned Sarvam-2B for Tenglish Conversations (MLX, Apple Silicon)
-
-> Hi Sarvam team,
->
-> I'm [YOUR_NAME], a student at IIIT and a native Telugu speaker. I fine-tuned
-> Sarvam-2B using LoRA on MLX (Apple Silicon M5) to build "Mitra" — a Tenglish
-> friend chatbot that recommends movies and songs based on mood.
->
-> I curated 600 Tenglish conversations, validated each one using my native
-> intuition, and trained the model entirely locally. The fine-tuned model shows
-> clear improvement in generating natural, contextual Tenglish vs the base model.
->
-> HuggingFace: https://huggingface.co/[YOUR_HF_USERNAME]/mitra-tenglish-sarvam2b
-> Eval results: [link to eval_results.txt]
->
-> I'd love to contribute to Sarvam's Indic language work as an intern. Happy to
-> discuss my approach and findings.
->
-> Best,
-> [YOUR_NAME]
