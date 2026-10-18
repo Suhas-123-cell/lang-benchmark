@@ -177,7 +177,7 @@ If you use this benchmark in your research, please cite:
   title={Indic Language Benchmark: Evaluating Sarvam-2B vs Gemma-2B on Hindi, Bengali, and Tamil},
   author={Suhas Dev},
   year={2026},
-  url={https://huggingface.co/spaces/YOUR_USERNAME/indic-llm-benchmark}
+  url={https://huggingface.co/spaces/suhas20sh/indic-llm-benchmark}
 }
 ```
 

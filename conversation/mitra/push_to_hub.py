@@ -4,7 +4,7 @@ from huggingface_hub import HfApi, create_repo
 import os, shutil
 
 # === FILL THESE IN ===
-HF_USERNAME = "[YOUR_HF_USERNAME]"  # e.g., "suhas20sh"
+HF_USERNAME = "suhas20sh"
 REPO_NAME = "mitra-tenglish-sarvam2b"
 # ======================
 
